@@ -58,7 +58,16 @@ class CPU:
 
         if op == "ADD":
             self.reg_write(reg_a, self.reg[reg_a] + self.reg[reg_b])
-        # elif op == "SUB": etc
+
+        elif op == "SUB":
+            self.reg_write(reg_a, self.reg[reg_a] - self.reg[reg_b])
+
+        elif op == "MUL":
+            self.reg_write(reg_a, self.reg[reg_a] * self.reg[reg_b])
+
+        elif op == "DIV":
+            self.reg_write(reg_a, self.reg[reg_a] / self.reg[reg_b])
+
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -92,13 +101,40 @@ class CPU:
                 self.reg_write(reg, value)
                 self.pc += 2
 
-            if instruction == 0b01000111:  # PRN
+            elif instruction == 0b01000111:  # PRN
                 reg = self.ram_read(self.pc + 1)
                 value = self.reg_read(reg)
                 print(value)
                 self.pc += 1
 
-            if instruction == 0b00000001:  # HLT
+            elif instruction == 0b10100000:  # ADD
+                reg_a = self.ram_read(self.pc + 1)
+                reg_b = self.ram_read(self.pc + 2)
+                self.alu("ADD", reg_a, reg_b)
+                self.pc += 2
+
+            elif instruction == 0b10100001:  # SUB
+                reg_a = self.ram_read(self.pc + 1)
+                reg_b = self.ram_read(self.pc + 2)
+                self.alu("SUB", reg_a, reg_b)
+                self.pc += 2
+
+            elif instruction == 0b10100010:  # MUL
+                reg_a = self.ram_read(self.pc + 1)
+                reg_b = self.ram_read(self.pc + 2)
+                self.alu("MUL", reg_a, reg_b)
+                self.pc += 2
+
+            elif instruction == 0b10100011:  # DIV
+                reg_a = self.ram_read(self.pc + 1)
+                reg_b = self.ram_read(self.pc + 2)
+                self.alu("DIV", reg_a, reg_b)
+                self.pc += 2
+
+            elif instruction == 0b00000001:  # HLT
                 break
+
+            else:
+                raise Exception("Unsupported instruction")
 
             self.pc += 1
