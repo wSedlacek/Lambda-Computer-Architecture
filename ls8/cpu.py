@@ -1,6 +1,7 @@
 """CPU functionality."""
 
 import sys
+import re
 
 
 class CPU:
@@ -12,23 +13,30 @@ class CPU:
         self.reg = {}
         self.pc = 0
 
-    def load(self):
+    def load(self, file: str):
         """Load a program into memory."""
 
+        if not file.endswith(".ls8"):
+            raise ValueError("File must end with .ls8")
+
+        program = []
+        with open(file, 'r') as file:
+            lines = file.readlines()
+
+            for line in lines:
+                # Remove Comments
+                match = re.match(r'^([^#]*)#(.*)$', line)
+                if match:
+                    line = match.group(1)
+
+                # Remove Whitespaces
+                line = line.strip()
+
+                if line:
+                    binary = int(line, 2)
+                    program.append(binary)
+
         address = 0
-
-        # For now, we've just hardcoded a program:
-
-        program = [
-            # From print8.ls8
-            0b10000010,  # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111,  # PRN R0
-            0b00000000,
-            0b00000001,  # HLT
-        ]
-
         for instruction in program:
             self.ram_write(address, instruction)
             address += 1
