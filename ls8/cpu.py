@@ -4,21 +4,30 @@ import sys
 
 
 class CPU:
-    """Main CPU class."""
+    """LS-8 compliant CPU"""
 
     def __init__(self):
-        """Construct a new CPU."""
+        """Construct a new CPU"""
         self.ram = {}
         self.reg = [-1] * 8
         self.pc = -1
 
+        self.operations = {}
+        self.operations[0b10000010] = self.ldi
+        self.operations[0b01000111] = self.prn
+        self.operations[0b10100000] = self.alu('ADD')
+        self.operations[0b10100001] = self.alu('SUB')
+        self.operations[0b10100010] = self.alu('MUL')
+        self.operations[0b10100011] = self.alu('DIV')
+
     @property
-    def counter(self):
+    def next_byte(self):
+        """Get the next byte tracked by the pc"""
         self.pc += 1
-        return self.pc
+        return self.ram[self.pc]
 
     def load(self, file: str):
-        """Load a program into memory."""
+        """Load a program into RAM"""
 
         if not file.endswith(".ls8"):
             raise ValueError("File must end with .ls8")
@@ -33,38 +42,57 @@ class CPU:
                     self.ram_load(binary)
 
     def ram_load(self, value: int):
+        """Load a value into the next memory address"""
         address = len(self.ram.values())
         self.ram[address] = value
 
-    def ram_read(self, address: int):
-        return self.ram[address]
+    def alu(self, operation: str):
+        """ALU operations"""
+        alu_operations = {}
 
-    def ram_write(self, address: int, value: int):
-        self.ram[address] = value
+        alu_operations["ADD"] = lambda a, b: a + b
+        alu_operations["SUB"] = lambda a, b: a - b
+        alu_operations["MUL"] = lambda a, b: a * b
+        alu_operations["DIV"] = lambda a, b: a / b
 
-    def reg_read(self, register: int):
-        return self.reg[register]
-
-    def reg_write(self, register: int, value: int):
-        self.reg[register] = value
-
-    def alu(self, op: str, reg_a: int, reg_b: int):
-        """ALU operations."""
-
-        if op == "ADD":
-            self.reg_write(reg_a, self.reg[reg_a] + self.reg[reg_b])
-
-        elif op == "SUB":
-            self.reg_write(reg_a, self.reg[reg_a] - self.reg[reg_b])
-
-        elif op == "MUL":
-            self.reg_write(reg_a, self.reg[reg_a] * self.reg[reg_b])
-
-        elif op == "DIV":
-            self.reg_write(reg_a, self.reg[reg_a] / self.reg[reg_b])
-
-        else:
+        if operation not in alu_operations:
             raise Exception("Unsupported ALU operation")
+
+        def alu_operation():
+            reg_a = self.next_byte
+            reg_b = self.next_byte
+
+            a = self.reg[reg_a]
+            b = self.reg[reg_b]
+
+            self.reg[reg_a] = alu_operations[operation](a, b)
+
+        return alu_operation
+
+    def ldi(self):
+        reg_a = self.next_byte
+        value = self.next_byte
+        self.reg[reg_a] = value
+
+    def prn(self):
+        reg_a = self.next_byte
+        value = self.reg[reg_a]
+        print(value)
+
+    def run(self):
+        """Run the program currently loaded into RAM"""
+
+        while True:
+            operation = self.next_byte
+
+            if operation in self.operations:
+                self.operations[operation]()
+
+            elif operation == 0b00000001:  # HLT
+                break
+
+            else:
+                raise Exception("Unsupported instruction")
 
     def trace(self):
         """
@@ -73,55 +101,13 @@ class CPU:
         """
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
-            self.counter,
-            self.ram_read(self.counter),
-            self.ram_read(self.counter + 1),
-            self.ram_read(self.counter + 2)
+            self.pc,
+            self.next_byte,
+            self.next_byte,
+            self.next_byte
         ), end='')
 
         for i in range(8):
             print(" %02X" % self.reg[i], end='')
 
         print()
-
-    def run(self):
-        """Run the CPU."""
-
-        while True:
-            instruction = self.ram_read(self.counter)
-
-            if instruction == 0b10000010:  # LDI
-                reg_a = self.ram_read(self.counter)
-                value = self.ram_read(self.counter)
-                self.reg_write(reg_a, value)
-
-            elif instruction == 0b01000111:  # PRN
-                reg_a = self.ram_read(self.counter)
-                value = self.reg_read(reg_a)
-                print(value)
-
-            elif instruction == 0b10100000:  # ADD
-                reg_a = self.ram_read(self.counter)
-                reg_b = self.ram_read(self.counter)
-                self.alu("ADD", reg_a, reg_b)
-
-            elif instruction == 0b10100001:  # SUB
-                reg_a = self.ram_read(self.counter)
-                reg_b = self.ram_read(self.counter)
-                self.alu("SUB", reg_a, reg_b)
-
-            elif instruction == 0b10100010:  # MUL
-                reg_a = self.ram_read(self.counter)
-                reg_b = self.ram_read(self.counter)
-                self.alu("MUL", reg_a, reg_b)
-
-            elif instruction == 0b10100011:  # DIV
-                reg_a = self.ram_read(self.counter)
-                reg_b = self.ram_read(self.counter)
-                self.alu("DIV", reg_a, reg_b)
-
-            elif instruction == 0b00000001:  # HLT
-                break
-
-            else:
-                raise Exception("Unsupported instruction")
