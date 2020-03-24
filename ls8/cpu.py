@@ -18,9 +18,12 @@ class CPU:
         self.stack_end = -13
 
         self.operations = {}
+        self.operations[0b00010001] = self.ret
         self.operations[0b01000101] = self.push
         self.operations[0b01000110] = self.pop
         self.operations[0b01000111] = self.prn
+        self.operations[0b01010000] = self.call
+        self.operations[0b01010100] = self.jmp
         self.operations[0b10000010] = self.ldi
         self.operations[0b10100000] = self.alu('ADD')
         self.operations[0b10100001] = self.alu('SUB')
@@ -106,6 +109,24 @@ class CPU:
         value = self.ram[self.stack_end]
         reg_a = self.next_byte
         self.reg[reg_a] = value
+
+    def jmp(self):
+        reg_a = self.next_byte
+        to = self.reg[reg_a]
+        self.pc = to - 1
+
+    def call(self):
+        reg_a = self.next_byte
+        to = self.reg[reg_a]
+
+        self.ram[self.stack_end] = self.pc
+        self.stack_end -= 1
+
+        self.pc = to - 1
+
+    def ret(self):
+        self.stack_end += 1
+        self.pc = self.ram[self.stack_end]
 
     def run(self):
         """Run the program currently loaded into RAM"""
