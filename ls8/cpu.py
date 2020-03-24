@@ -1,7 +1,6 @@
 """CPU functionality."""
 
 import sys
-import re
 
 
 class CPU:
@@ -10,8 +9,13 @@ class CPU:
     def __init__(self):
         """Construct a new CPU."""
         self.ram = {}
-        self.reg = {}
-        self.pc = 0
+        self.reg = [-1] * 8
+        self.pc = -1
+
+    @property
+    def counter(self):
+        self.pc += 1
+        return self.pc
 
     def load(self, file: str):
         """Load a program into memory."""
@@ -19,27 +23,18 @@ class CPU:
         if not file.endswith(".ls8"):
             raise ValueError("File must end with .ls8")
 
-        program = []
         with open(file, 'r') as file:
-            lines = file.readlines()
-
-            for line in lines:
-                # Remove Comments
-                match = re.match(r'^([^#]*)#(.*)$', line)
-                if match:
-                    line = match.group(1)
-
-                # Remove Whitespaces
+            for line in file:
+                line = line.split("#")[0]
                 line = line.strip()
 
                 if line:
                     binary = int(line, 2)
-                    program.append(binary)
+                    self.ram_load(binary)
 
-        address = 0
-        for instruction in program:
-            self.ram_write(address, instruction)
-            address += 1
+    def ram_load(self, value: int):
+        address = len(self.ram.values())
+        self.ram[address] = value
 
     def ram_read(self, address: int):
         return self.ram[address]
@@ -78,10 +73,10 @@ class CPU:
         """
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
-            self.pc,
-            self.ram_read(self.pc),
-            self.ram_read(self.pc + 1),
-            self.ram_read(self.pc + 2)
+            self.counter,
+            self.ram_read(self.counter),
+            self.ram_read(self.counter + 1),
+            self.ram_read(self.counter + 2)
         ), end='')
 
         for i in range(8):
@@ -93,48 +88,40 @@ class CPU:
         """Run the CPU."""
 
         while True:
-            instruction = self.ram_read(self.pc)
+            instruction = self.ram_read(self.counter)
 
             if instruction == 0b10000010:  # LDI
-                reg = self.ram_read(self.pc + 1)
-                value = self.ram_read(self.pc + 2)
-                self.reg_write(reg, value)
-                self.pc += 2
+                reg_a = self.ram_read(self.counter)
+                value = self.ram_read(self.counter)
+                self.reg_write(reg_a, value)
 
             elif instruction == 0b01000111:  # PRN
-                reg = self.ram_read(self.pc + 1)
-                value = self.reg_read(reg)
+                reg_a = self.ram_read(self.counter)
+                value = self.reg_read(reg_a)
                 print(value)
-                self.pc += 1
 
             elif instruction == 0b10100000:  # ADD
-                reg_a = self.ram_read(self.pc + 1)
-                reg_b = self.ram_read(self.pc + 2)
+                reg_a = self.ram_read(self.counter)
+                reg_b = self.ram_read(self.counter)
                 self.alu("ADD", reg_a, reg_b)
-                self.pc += 2
 
             elif instruction == 0b10100001:  # SUB
-                reg_a = self.ram_read(self.pc + 1)
-                reg_b = self.ram_read(self.pc + 2)
+                reg_a = self.ram_read(self.counter)
+                reg_b = self.ram_read(self.counter)
                 self.alu("SUB", reg_a, reg_b)
-                self.pc += 2
 
             elif instruction == 0b10100010:  # MUL
-                reg_a = self.ram_read(self.pc + 1)
-                reg_b = self.ram_read(self.pc + 2)
+                reg_a = self.ram_read(self.counter)
+                reg_b = self.ram_read(self.counter)
                 self.alu("MUL", reg_a, reg_b)
-                self.pc += 2
 
             elif instruction == 0b10100011:  # DIV
-                reg_a = self.ram_read(self.pc + 1)
-                reg_b = self.ram_read(self.pc + 2)
+                reg_a = self.ram_read(self.counter)
+                reg_b = self.ram_read(self.counter)
                 self.alu("DIV", reg_a, reg_b)
-                self.pc += 2
 
             elif instruction == 0b00000001:  # HLT
                 break
 
             else:
                 raise Exception("Unsupported instruction")
-
-            self.pc += 1
