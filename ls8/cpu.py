@@ -8,13 +8,20 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU"""
-        self.ram = {}
+        self.used_ram = 0
+        self.ram_size = 2048
+        self.ram = [0] * self.ram_size
         self.reg = [-1] * 8
         self.pc = -1
 
+        self.stack_start = -13
+        self.stack_end = -13
+
         self.operations = {}
-        self.operations[0b10000010] = self.ldi
+        self.operations[0b01000101] = self.push
+        self.operations[0b01000110] = self.pop
         self.operations[0b01000111] = self.prn
+        self.operations[0b10000010] = self.ldi
         self.operations[0b10100000] = self.alu('ADD')
         self.operations[0b10100001] = self.alu('SUB')
         self.operations[0b10100010] = self.alu('MUL')
@@ -25,6 +32,10 @@ class CPU:
         """Get the next byte tracked by the pc"""
         self.pc += 1
         return self.ram[self.pc]
+
+    @property
+    def stack(self):
+        return self.ram[self.stack_start:self.stack_end:-1]
 
     def load(self, file: str):
         """Load a program into RAM"""
@@ -41,10 +52,15 @@ class CPU:
                     binary = int(line, 2)
                     self.ram_load(binary)
 
+        self.ram_load(0b00000001)  # HTL (End of Program)
+
     def ram_load(self, value: int):
         """Load a value into the next memory address"""
-        address = len(self.ram.values())
-        self.ram[address] = value
+        if self.used_ram < self.ram_size:
+            self.ram[self.used_ram] = value
+            self.used_ram += 1
+        else:
+            raise Exception("RAM is FULL")
 
     def alu(self, operation: str):
         """ALU operations"""
@@ -78,6 +94,18 @@ class CPU:
         reg_a = self.next_byte
         value = self.reg[reg_a]
         print(value)
+
+    def push(self):
+        reg_a = self.next_byte
+        value = self.reg[reg_a]
+        self.ram[self.stack_end] = value
+        self.stack_end -= 1
+
+    def pop(self):
+        self.stack_end += 1
+        value = self.ram[self.stack_end]
+        reg_a = self.next_byte
+        self.reg[reg_a] = value
 
     def run(self):
         """Run the program currently loaded into RAM"""
