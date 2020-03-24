@@ -1,6 +1,7 @@
 """CPU functionality."""
 
 import sys
+from typing import Callable
 
 
 class CPU:
@@ -38,6 +39,7 @@ class CPU:
 
     @property
     def stack(self):
+        """Return an array of the current stack"""
         return self.ram[self.stack_start:self.stack_end:-1]
 
     def load(self, file: str):
@@ -59,74 +61,11 @@ class CPU:
 
     def ram_load(self, value: int):
         """Load a value into the next memory address"""
-        if self.used_ram < self.ram_size:
+        if self.used_ram < self.ram_size + self.stack_end:
             self.ram[self.used_ram] = value
             self.used_ram += 1
         else:
             raise Exception("RAM is FULL")
-
-    def alu(self, operation: str):
-        """ALU operations"""
-        alu_operations = {}
-
-        alu_operations["ADD"] = lambda a, b: a + b
-        alu_operations["SUB"] = lambda a, b: a - b
-        alu_operations["MUL"] = lambda a, b: a * b
-        alu_operations["DIV"] = lambda a, b: a / b
-
-        if operation not in alu_operations:
-            raise Exception("Unsupported ALU operation")
-
-        def alu_operation():
-            reg_a = self.next_byte
-            reg_b = self.next_byte
-
-            a = self.reg[reg_a]
-            b = self.reg[reg_b]
-
-            self.reg[reg_a] = alu_operations[operation](a, b)
-
-        return alu_operation
-
-    def ldi(self):
-        reg_a = self.next_byte
-        value = self.next_byte
-        self.reg[reg_a] = value
-
-    def prn(self):
-        reg_a = self.next_byte
-        value = self.reg[reg_a]
-        print(value)
-
-    def push(self):
-        reg_a = self.next_byte
-        value = self.reg[reg_a]
-        self.ram[self.stack_end] = value
-        self.stack_end -= 1
-
-    def pop(self):
-        self.stack_end += 1
-        value = self.ram[self.stack_end]
-        reg_a = self.next_byte
-        self.reg[reg_a] = value
-
-    def jmp(self):
-        reg_a = self.next_byte
-        to = self.reg[reg_a]
-        self.pc = to - 1
-
-    def call(self):
-        reg_a = self.next_byte
-        to = self.reg[reg_a]
-
-        self.ram[self.stack_end] = self.pc
-        self.stack_end -= 1
-
-        self.pc = to - 1
-
-    def ret(self):
-        self.stack_end += 1
-        self.pc = self.ram[self.stack_end]
 
     def run(self):
         """Run the program currently loaded into RAM"""
@@ -146,7 +85,7 @@ class CPU:
     def trace(self):
         """
         Handy function to print out the CPU state. You might want to call this
-        from run() if you need help debugging.
+        from run() if you need help debugging
         """
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
@@ -156,7 +95,224 @@ class CPU:
             self.next_byte
         ), end='')
 
-        for i in range(8):
-            print(" %02X" % self.reg[i], end='')
+        for reg in self.reg:
+            print(" %02X" % reg, end='')
 
         print()
+
+    ##### OPERATIONS ####
+    def ret(self):
+        """
+        `RET`
+
+        Return from subroutine.
+
+        Pop the value from the top of the stack and store it in the `PC`.
+
+        Machine Code:
+        ```byte
+        00010001
+        11
+        ```
+        """
+        self.stack_end += 1
+        self.pc = self.ram[self.stack_end]
+
+    def push(self):
+        """
+        `PUSH register`
+
+        Push the value in the given register on the stack.
+
+        1. Decrement the `SP`.
+        2. Copy the value in the given register to the address pointed to by
+        `SP`.
+
+        Machine code:
+        ```byte
+        01000101 00000rrr
+        45 0r
+        ```
+        """
+        reg_a = self.next_byte
+        value = self.reg[reg_a]
+        self.ram[self.stack_end] = value
+        self.stack_end -= 1
+
+    def pop(self):
+        """
+        `POP register`
+
+        Pop the value at the top of the stack into the given register.
+
+        1. Copy the value from the address pointed to by `SP` to the given register.
+        2. Increment `SP`.
+
+        Machine code:
+        ```byte
+        01000110 00000rrr
+        46 0r
+        ```
+        """
+        self.stack_end += 1
+        value = self.ram[self.stack_end]
+        reg_a = self.next_byte
+        self.reg[reg_a] = value
+
+    def prn(self):
+        """
+        `PRN register` pseudo-instruction
+
+        Print numeric value stored in the given register.
+
+        Print to the console the decimal integer value that is stored in the given
+        register.
+
+        Machine code:
+        ```byte
+        01000111 00000rrr
+        47 0r
+        ```
+        """
+        reg_a = self.next_byte
+        value = self.reg[reg_a]
+        print(value)
+
+    def call(self):
+        """
+        `CALL register`
+
+        Calls a subroutine (function) at the address stored in the register.
+
+        1. The address of the **_instruction_** _directly after_ `CALL` is
+        pushed onto the stack. This allows us to return to where we left off when the subroutine finishes executing.
+        2. The PC is set to the address stored in the given register. We jump to that location in RAM and execute the first instruction in the subroutine. The PC can move forward or backwards from its current location.
+
+        Machine code:
+        ```byte
+        01010000 00000rrr
+        50 0r
+        ```
+        """
+        reg_a = self.next_byte
+        to = self.reg[reg_a]
+
+        self.ram[self.stack_end] = self.pc
+        self.stack_end -= 1
+
+        self.pc = to - 1
+
+    def jmp(self):
+        """
+        `JMP register`
+
+        Jump to the address stored in the given register.
+
+        Set the `PC` to the address stored in the given register.
+
+        Machine code:
+        ```byte
+        01010100 00000rrr
+        54 0r
+        ```
+        """
+        reg_a = self.next_byte
+        to = self.reg[reg_a]
+        self.pc = to - 1
+
+    def ldi(self):
+        """
+        `LDI register immediate`
+
+        Set the value of a register to an integer.
+
+        Machine code:
+        ```byte
+        10000010 00000rrr iiiiiiii
+        82 0r ii
+        ```
+        """
+        reg_a = self.next_byte
+        value = self.next_byte
+        self.reg[reg_a] = value
+
+    def alu(self, op_code: str):
+        """
+        ALU - Arithmetic Logic Unit
+
+        Returns a function for the given ALU operation
+        """
+        alu_operations = {}
+
+        def create_operation(alu_operation: Callable):
+            def operation():
+                reg_a = self.next_byte
+                reg_b = self.next_byte
+
+                a = self.reg[reg_a]
+                b = self.reg[reg_b]
+                self.reg[reg_a] = alu_operation(a, b)
+
+            return operation
+
+        """
+        `ADD registerA registerB`
+
+        Add the value in two registers and store the result in registerA.
+
+        Machine code:
+        ```byte
+        10100000 00000aaa 00000bbb
+        A0 0a 0b
+        ```
+        """
+        alu_operations["ADD"] = create_operation(lambda a, b: a + b)
+
+        """
+        `SUB registerA registerB`
+
+        Subtract the value in the second register from the first, storing the
+        result in registerA.
+
+        Machine code:
+        ```byte
+        10100001 00000aaa 00000bbb
+        A1 0a 0b
+        ```
+        """
+        alu_operations["SUB"] = create_operation(lambda a, b: a - b)
+
+        """
+        `MUL registerA registerB`
+
+        Multiply the values in two registers together and store the result in registerA.
+
+        Machine code:
+        ```byte
+        10100010 00000aaa 00000bbb
+        A2 0a 0b
+        ```
+        """
+        alu_operations["MUL"] = create_operation(lambda a, b: a * b)
+
+        """
+        `DIV registerA registerB`
+
+        Divide the value in the first register by the value in the second,
+        storing the result in registerA.
+
+        If the value in the second register is 0, the system should print an
+        error message and halt.
+
+        Machine code:
+        ```byte
+        10100011 00000aaa 00000bbb
+        A3 0a 0b
+        ```
+        """
+        alu_operations["DIV"] = create_operation(lambda a, b: a / b)
+
+        if op_code not in alu_operations:
+            raise Exception("Unsupported ALU operation")
+
+        return alu_operations[op_code]

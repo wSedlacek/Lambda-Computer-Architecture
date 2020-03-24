@@ -185,7 +185,7 @@ Add the value in two registers and store the result in registerA.
 
 Machine code:
 
-```
+```byte
 10100000 00000aaa 00000bbb
 A0 0a 0b
 ```
@@ -201,7 +201,7 @@ registerA.
 
 Machine code:
 
-```
+```byte
 10101000 00000aaa 00000bbb
 A8 0a 0b
 ```
@@ -218,7 +218,7 @@ Calls a subroutine (function) at the address stored in the register.
 
 Machine code:
 
-```
+```byte
 01010000 00000rrr
 50 0r
 ```
@@ -241,7 +241,7 @@ Compare the values in two registers.
 
 Machine code:
 
-```
+```byte
 10100111 00000aaa 00000bbb
 A7 0a 0b
 ```
@@ -256,7 +256,7 @@ Decrement (subtract 1 from) the value in the given register.
 
 Machine code:
 
-```
+```byte
 01100110 00000rrr
 66 0r
 ```
@@ -275,7 +275,7 @@ error message and halt.
 
 Machine code:
 
-```
+```byte
 10100011 00000aaa 00000bbb
 A3 0a 0b
 ```
@@ -288,7 +288,7 @@ Halt the CPU (and exit the emulator).
 
 Machine code:
 
-```
+```byte
 00000001
 01
 ```
@@ -303,7 +303,7 @@ Increment (add 1 to) the value in the given register.
 
 Machine code:
 
-```
+```byte
 01100101 00000rrr
 65 0r
 ```
@@ -319,7 +319,7 @@ register.
 
 Machine code:
 
-```
+```byte
 01010010 00000rrr
 52 0r
 ```
@@ -339,7 +339,7 @@ The following steps are executed:
 
 Machine code:
 
-```
+```byte
 00010011
 13
 ```
@@ -352,7 +352,7 @@ If `equal` flag is set (true), jump to the address stored in the given register.
 
 Machine code:
 
-```
+```byte
 01010101 00000rrr
 55 0r
 ```
@@ -364,7 +364,7 @@ Machine code:
 If `greater-than` flag or `equal` flag is set (true), jump to the address stored
 in the given register.
 
-```
+```byte
 01011010 00000rrr
 5A 0r
 ```
@@ -378,7 +378,7 @@ register.
 
 Machine code:
 
-```
+```byte
 01010111 00000rrr
 57 0r
 ```
@@ -390,7 +390,7 @@ Machine code:
 If `less-than` flag or `equal` flag is set (true), jump to the address stored in the given
 register.
 
-```
+```byte
 01011001 00000rrr
 59 0r
 ```
@@ -404,7 +404,7 @@ register.
 
 Machine code:
 
-```
+```byte
 01011000 00000rrr
 58 0r
 ```
@@ -419,7 +419,7 @@ Set the `PC` to the address stored in the given register.
 
 Machine code:
 
-```
+```byte
 01010100 00000rrr
 54 0r
 ```
@@ -433,7 +433,7 @@ register.
 
 Machine code:
 
-```
+```byte
 01010110 00000rrr
 56 0r
 ```
@@ -448,7 +448,7 @@ This opcode reads from memory.
 
 Machine code:
 
-```
+```byte
 10000011 00000aaa 00000bbb
 83 0a 0b
 ```
@@ -461,7 +461,7 @@ Set the value of a register to an integer.
 
 Machine code:
 
-```
+```byte
 10000010 00000rrr iiiiiiii
 82 0r ii
 ```
@@ -480,7 +480,7 @@ error message and halt.
 
 Machine code:
 
-```
+```byte
 10100100 00000aaa 00000bbb
 A4 0a 0b
 ```
@@ -495,7 +495,7 @@ Multiply the values in two registers together and store the result in registerA.
 
 Machine code:
 
-```
+```byte
 10100010 00000aaa 00000bbb
 A2 0a 0b
 ```
@@ -508,7 +508,7 @@ No operation. Do nothing for this instruction.
 
 Machine code:
 
-```
+```byte
 00000000
 00
 ```
@@ -523,7 +523,7 @@ Perform a bitwise-NOT on the value in a register, storing the result in the regi
 
 Machine code:
 
-```
+```byte
 01101001 00000rrr
 69 0r
 ```
@@ -539,7 +539,7 @@ result in registerA.
 
 Machine code:
 
-```
+```byte
 10101010 00000aaa 00000bbb
 AA 0a 0b
 ```
@@ -555,7 +555,7 @@ Pop the value at the top of the stack into the given register.
 
 Machine code:
 
-```
+```byte
 01000110 00000rrr
 46 0r
 ```
@@ -571,7 +571,7 @@ register.
 
 Machine code:
 
-```
+```byte
 01001000 00000rrr
 48 0r
 ```
@@ -587,7 +587,7 @@ register.
 
 Machine code:
 
-```
+```byte
 01000111 00000rrr
 47 0r
 ```
@@ -604,7 +604,7 @@ Push the value in the given register on the stack.
 
 Machine code:
 
-```
+```byte
 01000101 00000rrr
 45 0r
 ```
@@ -619,7 +619,7 @@ Pop the value from the top of the stack and store it in the `PC`.
 
 Machine Code:
 
-```
+```byte
 00010001
 11
 ```
@@ -631,7 +631,7 @@ _This is an instruction handled by the ALU._
 Shift the value in registerA left by the number of bits specified in registerB,
 filling the low bits with 0.
 
-```
+```byte
 10101100 00000aaa 00000bbb
 AC 0a 0b
 ```
@@ -643,7 +643,7 @@ _This is an instruction handled by the ALU._
 Shift the value in registerA right by the number of bits specified in registerB,
 filling the high bits with 0.
 
-```
+```byte
 10101101 00000aaa 00000bbb
 AD 0a 0b
 ```
@@ -658,7 +658,7 @@ This opcode writes to memory.
 
 Machine code:
 
-```
+```byte
 10000100 00000aaa 00000bbb
 84 0a 0b
 ```
@@ -674,7 +674,7 @@ result in registerA.
 
 Machine code:
 
-```
+```byte
 10100001 00000aaa 00000bbb
 A1 0a 0b
 ```
@@ -690,7 +690,7 @@ result in registerA.
 
 Machine code:
 
-```
+```byte
 10101011 00000aaa 00000bbb
 AB 0a 0b
 ```
