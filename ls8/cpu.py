@@ -23,13 +23,19 @@ class CPU:
         self.operations[0b01000101] = self.push
         self.operations[0b01000110] = self.pop
         self.operations[0b01000111] = self.prn
+        self.operations[0b01001000] = self.pra
         self.operations[0b01010000] = self.call
         self.operations[0b01010100] = self.jmp
         self.operations[0b10000010] = self.ldi
+        self.operations[0b10000011] = self.ld
+        self.operations[0b10000100] = self.st
         self.operations[0b10100000] = self.alu('ADD')
         self.operations[0b10100001] = self.alu('SUB')
         self.operations[0b10100010] = self.alu('MUL')
         self.operations[0b10100011] = self.alu('DIV')
+        self.operations[0b10100100] = self.alu('MOD')
+        self.operations[0b01100101] = self.alu('INC')
+        self.operations[0b01100110] = self.alu('DEC')
 
     @property
     def next_byte(self):
@@ -75,6 +81,9 @@ class CPU:
 
             if operation in self.operations:
                 self.operations[operation]()
+
+            elif operation == 0b00000000:  # NOP
+                pass
 
             elif operation == 0b00000001:  # HLT
                 break
@@ -178,6 +187,25 @@ class CPU:
         value = self.reg[reg_a]
         print(value)
 
+    def pra(self):
+        """
+        `PRA register` pseudo-instruction
+
+        Print alpha character value stored in the given register.
+
+        Print to the console the ASCII character corresponding to the value in the
+        register.
+
+        Machine code:
+        ```byte
+        01001000 00000rrr
+        48 0r
+        ```
+        """
+        reg_a = self.next_byte
+        value = self.reg[reg_a]
+        print(chr(value))
+
     def call(self):
         """
         `CALL register`
@@ -236,6 +264,47 @@ class CPU:
         value = self.next_byte
         self.reg[reg_a] = value
 
+    def ld(self):
+        """
+        `LD registerA registerB`
+
+        Loads registerA with the value at the memory address stored in registerB.
+
+        This opcode reads from memory.
+
+        Machine code:
+        ```byte
+        10000011 00000aaa 00000bbb
+        83 0a 0b
+        ```
+        """
+        reg_a = self.next_byte
+        reg_b = self.next_byte
+        address = self.reg[reg_b]
+        value = self.ram[address]
+        self.reg[reg_a] = value
+
+    def st(self):
+        """
+        `ST registerA registerB`
+
+        Store value in registerB in the address stored in registerA.
+
+        This opcode writes to memory.
+
+        Machine code:
+        ```byte
+        10000100 00000aaa 00000bbb
+        84 0a 0b
+        ```
+        """
+        reg_a = self.next_byte
+        reg_b = self.next_byte
+        address = self.reg[reg_a]
+        value = self.reg[reg_b]
+
+        self.ram[address] = value
+
     def alu(self, op_code: str):
         """
         ALU - Arithmetic Logic Unit
@@ -244,14 +313,24 @@ class CPU:
         """
         alu_operations = {}
 
-        def create_operation(alu_operation: Callable):
+        def two_reg_operation(alu_operation: Callable):
             def operation():
                 reg_a = self.next_byte
                 reg_b = self.next_byte
 
                 a = self.reg[reg_a]
                 b = self.reg[reg_b]
+
                 self.reg[reg_a] = alu_operation(a, b)
+
+            return operation
+
+        def one_reg_operation(alu_operation: Callable):
+            def operation():
+                reg_a = self.next_byte
+                a = self.reg[reg_a]
+
+                self.reg[reg_a] = alu_operation(a)
 
             return operation
 
@@ -266,7 +345,7 @@ class CPU:
         A0 0a 0b
         ```
         """
-        alu_operations["ADD"] = create_operation(lambda a, b: a + b)
+        alu_operations["ADD"] = two_reg_operation(lambda a, b: a + b)
 
         """
         `SUB registerA registerB`
@@ -280,7 +359,7 @@ class CPU:
         A1 0a 0b
         ```
         """
-        alu_operations["SUB"] = create_operation(lambda a, b: a - b)
+        alu_operations["SUB"] = two_reg_operation(lambda a, b: a - b)
 
         """
         `MUL registerA registerB`
@@ -293,7 +372,7 @@ class CPU:
         A2 0a 0b
         ```
         """
-        alu_operations["MUL"] = create_operation(lambda a, b: a * b)
+        alu_operations["MUL"] = two_reg_operation(lambda a, b: a * b)
 
         """
         `DIV registerA registerB`
@@ -310,7 +389,51 @@ class CPU:
         A3 0a 0b
         ```
         """
-        alu_operations["DIV"] = create_operation(lambda a, b: a / b)
+        alu_operations["DIV"] = two_reg_operation(lambda a, b: a / b)
+
+        """
+        `MOD registerA registerB`
+
+        Divide the value in the first register by the value in the second,
+        storing the _remainder_ of the result in registerA.
+
+        If the value in the second register is 0, the system should print an
+        error message and halt.
+
+        Machine code:
+        ```byte
+        10100100 00000aaa 00000bbb
+        A4 0a 0b
+        ```
+        """
+        alu_operations["MOD"] = two_reg_operation(lambda a, b: a % b)
+
+        """
+        `INC register`
+
+        Increment (add 1 to) the value in the given register.
+
+        Machine code:
+
+        ```byte
+        01100101 00000rrr
+        65 0r
+        ```
+        """
+        alu_operations["INC"] = one_reg_operation(lambda a: a + 1)
+
+        """
+        `DEC register`
+
+        Decrement (subtract 1 from) the value in the given register.
+
+        Machine code:
+        ```byte
+        01100110 00000rrr
+        66 0r
+        ```
+        """
+        alu_operations["DEC"] = one_reg_operation(lambda a: a - 1)
 
         if op_code not in alu_operations:
             raise Exception("Unsupported ALU operation")
