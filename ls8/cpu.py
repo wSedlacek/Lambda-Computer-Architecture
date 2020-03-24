@@ -14,6 +14,7 @@ class CPU:
         self.ram = [0] * self.ram_size
         self.reg = [-1] * 8
         self.pc = -1
+        self.flags = {}
 
         self.stack_start = -13
         self.stack_end = -13
@@ -36,6 +37,13 @@ class CPU:
         self.operations[0b10100100] = self.alu('MOD')
         self.operations[0b01100101] = self.alu('INC')
         self.operations[0b01100110] = self.alu('DEC')
+        self.operations[0b10100111] = self.alu('CMP')
+        self.operations[0b10101000] = self.alu('AND')
+        self.operations[0b10101001] = self.alu('NOT')
+        self.operations[0b10101010] = self.alu('OR')
+        self.operations[0b10101011] = self.alu('XOR')
+        self.operations[0b10101100] = self.alu('SHL')
+        self.operations[0b10101101] = self.alu('SHR')
 
     @property
     def next_byte(self):
@@ -313,6 +321,15 @@ class CPU:
         """
         alu_operations = {}
 
+        def one_reg_operation(alu_operation: Callable):
+            def operation():
+                reg_a = self.next_byte
+                a = self.reg[reg_a]
+
+                self.reg[reg_a] = alu_operation(a)
+
+            return operation
+
         def two_reg_operation(alu_operation: Callable):
             def operation():
                 reg_a = self.next_byte
@@ -325,14 +342,16 @@ class CPU:
 
             return operation
 
-        def one_reg_operation(alu_operation: Callable):
-            def operation():
-                reg_a = self.next_byte
-                a = self.reg[reg_a]
+        def compare_operation():
+            reg_a = self.next_byte
+            reg_b = self.next_byte
 
-                self.reg[reg_a] = alu_operation(a)
+            a = self.reg[reg_a]
+            b = self.reg[reg_b]
 
-            return operation
+            self.flags['E'] = int(a == b)
+            self.flags['L'] = int(a < b)
+            self.flags['G'] = int(a > b)
 
         """
         `ADD registerA registerB`
@@ -434,6 +453,109 @@ class CPU:
         ```
         """
         alu_operations["DEC"] = one_reg_operation(lambda a: a - 1)
+
+        """
+        `CMP registerA registerB`
+
+        Compare the values in two registers.
+
+        - If they are equal, set the Equal `E` flag to 1, otherwise set it to 0.
+
+        - If registerA is less than registerB, set the Less-than `L` flag to 1,
+        otherwise set it to 0.
+
+        - If registerA is greater than registerB, set the Greater-than `G` flag
+        to 1, otherwise set it to 0.
+
+        Machine code:
+        ```byte
+        10100111 00000aaa 00000bbb
+        A7 0a 0b
+        ```
+        """
+        alu_operations["CMP"] = compare_operation
+
+        """
+        `AND registerA registerB`
+
+        Bitwise-AND the values in registerA and registerB, then store the result in
+        registerA.
+
+        Machine code:
+        ```byte
+        10101000 00000aaa 00000bbb
+        A8 0a 0b
+        ```
+        """
+        alu_operations["AND"] = two_reg_operation(lambda a, b: a & b)
+
+        """
+        `NOT register`
+
+        Perform a bitwise-NOT on the value in a register, storing the result in the register.
+
+        Machine code:
+
+        ```byte
+        01101001 00000rrr
+        69 0r
+        ```
+        """
+        alu_operations["NOT"] = one_reg_operation(lambda a: ~a)
+
+        """
+        `OR registerA registerB`
+
+        Perform a bitwise-OR between the values in registerA and registerB, storing the
+        result in registerA.
+
+        Machine code:
+
+        ```byte
+        10101010 00000aaa 00000bbb
+        AA 0a 0b
+        ```
+        """
+        alu_operations["OR"] = two_reg_operation(lambda a, b: a | b)
+
+        """
+        `XOR registerA registerB`
+
+        Perform a bitwise-XOR between the values in registerA and registerB, storing the
+        result in registerA.
+
+        Machine code:
+
+        ```byte
+        10101011 00000aaa 00000bbb
+        AB 0a 0b
+        ```
+        """
+        alu_operations["XOR"] = two_reg_operation(lambda a, b: a ^ b)
+
+        """
+        Shift the value in registerA left by the number of bits specified in registerB,
+        filling the low bits with 0.
+
+        Machine Code:
+        ```byte
+        10101100 00000aaa 00000bbb
+        AC 0a 0b
+        ```
+        """
+        alu_operations["SHL"] = two_reg_operation(lambda a, b: a << b)
+
+        """
+        Shift the value in registerA right by the number of bits specified in registerB,
+        filling the high bits with 0.
+
+        Machine Code:
+        ```byte
+        10101101 00000aaa 00000bbb
+        AD 0a 0b
+        ```
+        """
+        alu_operations["SHR"] = two_reg_operation(lambda a, b: a >> b)
 
         if op_code not in alu_operations:
             raise Exception("Unsupported ALU operation")

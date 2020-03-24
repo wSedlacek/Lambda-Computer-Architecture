@@ -524,7 +524,7 @@ Perform a bitwise-NOT on the value in a register, storing the result in the regi
 Machine code:
 
 ```byte
-01101001 00000rrr
+10101001 00000rrr
 69 0r
 ```
 
@@ -631,6 +631,8 @@ _This is an instruction handled by the ALU._
 Shift the value in registerA left by the number of bits specified in registerB,
 filling the low bits with 0.
 
+Machine Code:
+
 ```byte
 10101100 00000aaa 00000bbb
 AC 0a 0b
@@ -642,6 +644,8 @@ _This is an instruction handled by the ALU._
 
 Shift the value in registerA right by the number of bits specified in registerB,
 filling the high bits with 0.
+
+Machine Code:
 
 ```byte
 10101101 00000aaa 00000bbb
