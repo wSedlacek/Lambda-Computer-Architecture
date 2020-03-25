@@ -210,8 +210,7 @@ class CPU:
         ```
         """
 
-        self.registers[stack_pointer] += 1
-        self.program_counter = self.ram[self.registers[stack_pointer]]
+        self.program_counter = self.stack_pop()
 
     def IRET(self):
         """
@@ -339,10 +338,7 @@ class CPU:
 
         reg_a = self.next_byte
         to = self.registers[reg_a]
-
-        self.ram[self.registers[stack_pointer]] = self.program_counter
-        self.registers[stack_pointer] -= 1
-
+        self.stack_push(self.program_counter)
         self.program_counter = to - 1
 
     def INT(self):
