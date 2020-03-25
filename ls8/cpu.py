@@ -114,10 +114,10 @@ class CPU:
 
         running = 1
         while running:
-            self.keyboard_poll()
             self.process_interupt()
             running = self.execute()
             self.interupt_timer()
+            self.keyboard_poll()
 
     def keyboard_poll(self):
         if select([stdin], [], [], 0) == ([stdin], [], []):
