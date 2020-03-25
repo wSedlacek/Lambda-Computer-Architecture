@@ -1,9 +1,13 @@
 from alu import ALU
 from datetime import datetime, timedelta
+from select import select
+from sys import stdin
 
 interrupt_mask = 5
 interrupt_status = 6
 stack_pointer = 7
+
+last_key = -12
 stack_start = -13
 
 interupts = list(range(-8, 0))
@@ -66,7 +70,7 @@ class CPU:
 
     @property
     def next_byte(self):
-        """Get the next byte tracked by the pc"""
+        """Get the next byte tracked by the program counter"""
 
         self.program_counter += 1
         return self.ram[self.program_counter]
@@ -108,9 +112,15 @@ class CPU:
 
         running = 1
         while running:
+            self.keyboard_poll()
             self.process_interupt()
             running = self.execute()
             self.interupt_timer()
+
+    def keyboard_poll(self):
+        if select([stdin], [], [], 0) == ([stdin], [], []):
+            self.ram[last_key] = ord(stdin.read(1))
+            self.registers[interrupt_status] |= 1 << 1
 
     def process_interupt(self):
         """Process any interupts if they exist"""
@@ -158,7 +168,7 @@ class CPU:
         current_time = datetime.now()
         if current_time - self.last_timer > timedelta(seconds=1) and self.ram[interupts[0]]:
             self.last_timer = current_time
-            self.registers[interrupt_status] = 1
+            self.registers[interrupt_status] |= 1 << 0
 
     def trace(self):
         """
@@ -499,7 +509,7 @@ class CPU:
         5A 0r
         ```
         """
-        
+
         if self.flags['E'] or self.flags['G']:
             self.JMP()
         else:
