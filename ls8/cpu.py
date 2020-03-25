@@ -258,6 +258,7 @@ class CPU:
 
         reg_a = self.next_byte
         value = self.registers[reg_a]
+        
         self.stack_push(value)
 
     def POP(self):
@@ -277,6 +278,7 @@ class CPU:
         """
 
         reg_a = self.next_byte
+
         self.registers[reg_a] = self.stack_pop()
 
     def PRN(self):
@@ -297,6 +299,7 @@ class CPU:
 
         reg_a = self.next_byte
         value = self.registers[reg_a]
+
         print(value)
 
     def PRA(self):
@@ -317,6 +320,7 @@ class CPU:
 
         reg_a = self.next_byte
         value = self.registers[reg_a]
+
         print(chr(value), end='')
 
     def CALL(self):
@@ -338,6 +342,7 @@ class CPU:
 
         reg_a = self.next_byte
         to = self.registers[reg_a]
+
         self.stack_push(self.program_counter)
         self.program_counter = to - 1
 
@@ -359,6 +364,7 @@ class CPU:
 
         reg_a = self.next_byte
         bit = self.registers[reg_a]
+
         self.registers[interrupt_status] |= 1 << bit
 
     def JMP(self):
@@ -378,6 +384,7 @@ class CPU:
 
         reg_a = self.next_byte
         to = self.registers[reg_a]
+
         self.program_counter = to - 1
 
     def JEQ(self):
@@ -510,6 +517,7 @@ class CPU:
 
         reg_a = self.next_byte
         value = self.next_byte
+
         self.registers[reg_a] = value
 
     def LD(self):
@@ -531,6 +539,7 @@ class CPU:
         reg_b = self.next_byte
         address = self.registers[reg_b]
         value = self.ram[address]
+
         self.registers[reg_a] = value
 
     def ST(self):
