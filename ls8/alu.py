@@ -23,6 +23,8 @@ class ALU:
 
             self.cpu.registers[reg_a] = alu_operation(a)
 
+            return 1
+
         return operation
 
     def two_reg_operation(self, alu_operation: Callable):
@@ -38,6 +40,8 @@ class ALU:
             b = self.cpu.registers[reg_b]
 
             self.cpu.registers[reg_a] = alu_operation(a, b)
+
+            return 1
 
         return operation
 
@@ -55,6 +59,8 @@ class ALU:
         self.cpu.flags['E'] = int(a == b)
         self.cpu.flags['L'] = int(a < b)
         self.cpu.flags['G'] = int(a > b)
+
+        return 1
 
     ##### OPERATIONS ####
     @property

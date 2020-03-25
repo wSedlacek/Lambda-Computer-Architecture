@@ -35,6 +35,8 @@ class CPU:
         alu = ALU(self)
 
         self.operations = {}
+        self.operations[0b00000000] = self.NOP
+        self.operations[0b00000001] = self.HLT
         self.operations[0b00010001] = self.RET
         self.operations[0b00010011] = self.IRET
         self.operations[0b01000101] = self.PUSH
@@ -149,18 +151,9 @@ class CPU:
         operation = self.next_byte
 
         if operation in self.operations:
-            self.operations[operation]()
-
-        elif operation == 0b00000000:  # NOP
-            return 2
-
-        elif operation == 0b00000001:  # HLT
-            return 0
-
+            return self.operations[operation]()
         else:
             raise Exception("Unsupported instruction")
-
-        return 1
 
     def interupt_timer(self):
         """Trigger a timer interupt if 1 second has passed between the last timer interupt"""
@@ -203,6 +196,37 @@ class CPU:
             raise Exception("Stack Underflow")
 
     ##### OPERATIONS ####
+    def NOP(self):
+        """
+        `NOP`
+
+        No operation. Do nothing for this instruction.
+
+        Machine code:
+
+        ```byte
+        00000000
+        00
+        ```
+        """
+
+        return 2
+
+    def HLT(self):
+        """
+        `HLT`
+
+        Halt the CPU (and exit the emulator).
+
+        Machine code:
+        ```byte
+        00000001
+        01
+        ```
+        """
+
+        return 0
+
     def RET(self):
         """
         `RET`
@@ -219,6 +243,8 @@ class CPU:
         """
 
         self.program_counter = self.stack_pop()
+
+        return 1
 
     def IRET(self):
         """
@@ -247,6 +273,8 @@ class CPU:
         self.program_counter = self.stack_pop()
         self.interupting = False
 
+        return 1
+
     def PUSH(self):
         """
         `PUSH register`
@@ -269,6 +297,8 @@ class CPU:
 
         self.stack_push(value)
 
+        return 1
+
     def POP(self):
         """
         `POP register`
@@ -288,6 +318,8 @@ class CPU:
         reg_a = self.next_byte
 
         self.registers[reg_a] = self.stack_pop()
+
+        return 1
 
     def PRN(self):
         """
@@ -310,6 +342,8 @@ class CPU:
 
         print(value)
 
+        return 1
+
     def PRA(self):
         """
         `PRA register` pseudo-instruction
@@ -330,6 +364,8 @@ class CPU:
         value = self.registers[reg_a]
 
         print(chr(value), end='')
+
+        return 1
 
     def CALL(self):
         """
@@ -358,6 +394,8 @@ class CPU:
         self.stack_push(self.program_counter)
         self.program_counter = to - 1
 
+        return 1
+
     def INT(self):
         """
         `INT register`
@@ -379,6 +417,8 @@ class CPU:
 
         self.registers[interrupt_status] |= 1 << bit
 
+        return 1
+
     def JMP(self):
         """
         `JMP register`
@@ -399,6 +439,8 @@ class CPU:
 
         self.program_counter = to - 1
 
+        return 1
+
     def JEQ(self):
         """
         `JEQ register`
@@ -416,6 +458,8 @@ class CPU:
             self.JMP()
         else:
             self.next_byte
+
+        return 1
 
     def JNE(self):
         """
@@ -435,6 +479,8 @@ class CPU:
             self.JMP()
         else:
             self.next_byte
+
+        return 1
 
     def JGT(self):
         """
@@ -456,6 +502,8 @@ class CPU:
         else:
             self.next_byte
 
+        return 1
+
     def JLT(self):
         """
         `JLT register`
@@ -476,6 +524,8 @@ class CPU:
         else:
             self.next_byte
 
+        return 1
+
     def JLE(self):
         """
         `JLE register`
@@ -494,6 +544,8 @@ class CPU:
             self.JMP()
         else:
             self.next_byte
+
+        return 1
 
     def JGE(self):
         """
@@ -515,6 +567,8 @@ class CPU:
         else:
             self.next_byte
 
+        return 1
+
     def LDI(self):
         """
         `LDI register immediate`
@@ -532,6 +586,8 @@ class CPU:
         value = self.next_byte
 
         self.registers[reg_a] = value
+
+        return 1
 
     def LD(self):
         """
@@ -555,6 +611,8 @@ class CPU:
 
         self.registers[reg_a] = value
 
+        return 1
+
     def ST(self):
         """
         `ST registerA registerB`
@@ -576,3 +634,5 @@ class CPU:
         value = self.registers[reg_b]
 
         self.ram[address] = value
+
+        return 1
