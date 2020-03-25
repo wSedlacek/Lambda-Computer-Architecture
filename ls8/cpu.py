@@ -1,7 +1,16 @@
-"""CPU functionality."""
+"""CPU functionality"""
 
-import sys
 from typing import Callable
+
+from datetime import datetime, timedelta
+import sys
+
+interrupt_mask = 5
+interrupt_status = 6
+stack_pointer = 7
+stack_start = -13
+
+interupt = list(range(-8, 0))
 
 
 class CPU:
@@ -10,24 +19,29 @@ class CPU:
     def __init__(self):
         """Construct a new CPU"""
         self.used_ram = 0
-        self.ram_size = 2048
+        self.ram_size = 256
         self.ram = [0] * self.ram_size
 
-        self.register = [-1] * 5
-        self.interupt_mask = 0
-        self.interupt_status = 0
-        self.stack_pointer = -13
+        self.registers = [-1] * 8
+        self.registers[interrupt_mask] = 0
+        self.registers[interrupt_status] = 0
+        self.registers[stack_pointer] = stack_start
+
+        self.interupting = False
+        self.last_timer = datetime.now()
 
         self.flags = {'E': 0, 'L': 0, 'G': 0}
         self.program_counter = -1
 
         self.operations = {}
         self.operations[0b00010001] = self.ret
+        self.operations[0b00010011] = self.iret
         self.operations[0b01000101] = self.push
         self.operations[0b01000110] = self.pop
         self.operations[0b01000111] = self.prn
         self.operations[0b01001000] = self.pra
         self.operations[0b01010000] = self.call
+        self.operations[0b01010010] = self.int
         self.operations[0b01010100] = self.jmp
         self.operations[0b01010101] = self.jeq
         self.operations[0b01010110] = self.jne
@@ -62,7 +76,7 @@ class CPU:
     @property
     def stack(self):
         """Return an array of the current stack"""
-        return self.ram[-13:self.stack_pointer:-1]
+        return self.ram[stack_start:self.registers[stack_pointer]:-1]
 
     def load(self, file: str):
         """Load a program into RAM"""
@@ -83,7 +97,7 @@ class CPU:
 
     def ram_load(self, value: int):
         """Load a value into the next memory address"""
-        if self.used_ram < self.ram_size + self.stack_pointer:
+        if self.used_ram < self.ram_size + self.registers[stack_pointer]:
             self.ram[self.used_ram] = value
             self.used_ram += 1
         else:
@@ -92,20 +106,53 @@ class CPU:
     def run(self):
         """Run the program currently loaded into RAM"""
 
-        while True:
-            operation = self.next_byte
+        running = True
+        while running:
+            self.interupt()
+            running = self.execute()
+            self.interupt_timer()
 
-            if operation in self.operations:
-                self.operations[operation]()
+    def interupt(self):
+        if self.registers[interrupt_status] and not self.interupting:
+            masked_interrupts = self.registers[interrupt_mask] & self.registers[interrupt_status]
 
-            elif operation == 0b00000000:  # NOP
-                pass
+            for i in range(8):
+                interrupt_happened = ((masked_interrupts >> i) & 1) == 1
+                if interrupt_happened:
+                    self.interupting = True
+                    self.registers[interrupt_status] ^= 1 << i
 
-            elif operation == 0b00000001:  # HLT
-                break
+                    self.stack_push(self.program_counter)
+                    self.stack_push(self.flags)
 
-            else:
-                raise Exception("Unsupported instruction")
+                    for reg in range(7):
+                        self.stack_push(self.registers[reg])
+
+                    self.program_counter = self.ram[interupt[i]] - 1
+                    break
+
+    def execute(self):
+        operation = self.next_byte
+
+        if operation in self.operations:
+            self.operations[operation]()
+
+        elif operation == 0b00000000:  # NOP
+            return 2
+
+        elif operation == 0b00000001:  # HLT
+            return 0
+
+        else:
+            raise Exception("Unsupported instruction")
+
+        return 1
+
+    def interupt_timer(self):
+        current_time = datetime.now()
+        if current_time - self.last_timer > timedelta(seconds=1) and self.ram[interupt[0]]:
+            self.last_timer = current_time
+            self.registers[interrupt_status] = 1
 
     def trace(self):
         """
@@ -120,10 +167,24 @@ class CPU:
             self.next_byte
         ), end='')
 
-        for reg in self.register:
+        for reg in self.registers:
             print(" %02X" % reg, end='')
 
         print()
+
+    def stack_push(self, value):
+        if (self.used_ram - self.registers[stack_pointer]) - self.ram_size < 0:
+            self.ram[self.registers[stack_pointer]] = value
+            self.registers[stack_pointer] -= 1
+        else:
+            raise Exception("Stack Overflow")
+
+    def stack_pop(self):
+        if self.registers[stack_pointer] < stack_start:
+            self.registers[stack_pointer] += 1
+            return self.ram[self.registers[stack_pointer]]
+        else:
+            raise Exception("Stack Underflow")
 
     ##### OPERATIONS ####
     def ret(self):
@@ -140,8 +201,34 @@ class CPU:
         11
         ```
         """
-        self.stack_pointer += 1
-        self.program_counter = self.ram[self.stack_pointer]
+        self.registers[stack_pointer] += 1
+        self.program_counter = self.ram[self.registers[stack_pointer]]
+
+    def iret(self):
+        """
+        `IRET`
+
+        Return from an interrupt handler.
+
+        The following steps are executed:
+
+        1. Registers R6-R0 are popped off the stack in that order.
+        2. The `FL` register is popped off the stack.
+        3. The return address is popped off the stack and stored in `PC`.
+        4. Interrupts are re-enabled
+
+        Machine code:
+        ```byte
+        00010011
+        13
+        ```
+        """
+        for i in range(6, -1, -1):
+            self.registers[i] = self.stack_pop()
+
+        self.flags = self.stack_pop()
+        self.program_counter = self.stack_pop()
+        self.interupting = False
 
     def push(self):
         """
@@ -159,13 +246,9 @@ class CPU:
         45 0r
         ```
         """
-        if self.ram_size < self.used_ram - self.stack_pointer:
-            reg_a = self.next_byte
-            value = self.register[reg_a]
-            self.ram[self.stack_pointer] = value
-            self.stack_pointer -= 1
-        else:
-            raise Exception("Stack Overflow")
+        reg_a = self.next_byte
+        value = self.registers[reg_a]
+        self.stack_push(value)
 
     def pop(self):
         """
@@ -182,13 +265,8 @@ class CPU:
         46 0r
         ```
         """
-        if self.stack_pointer < -13:
-            self.stack_pointer += 1
-            value = self.ram[self.stack_pointer]
-            reg_a = self.next_byte
-            self.register[reg_a] = value
-        else:
-            raise Exception("Stack Underflow")
+        reg_a = self.next_byte
+        self.registers[reg_a] = self.stack_pop()
 
     def prn(self):
         """
@@ -206,7 +284,7 @@ class CPU:
         ```
         """
         reg_a = self.next_byte
-        value = self.register[reg_a]
+        value = self.registers[reg_a]
         print(value)
 
     def pra(self):
@@ -225,7 +303,7 @@ class CPU:
         ```
         """
         reg_a = self.next_byte
-        value = self.register[reg_a]
+        value = self.registers[reg_a]
         print(chr(value), end='')
 
     def call(self):
@@ -245,12 +323,31 @@ class CPU:
         ```
         """
         reg_a = self.next_byte
-        to = self.register[reg_a]
+        to = self.registers[reg_a]
 
-        self.ram[self.stack_pointer] = self.program_counter
-        self.stack_pointer -= 1
+        self.ram[self.registers[stack_pointer]] = self.program_counter
+        self.registers[stack_pointer] -= 1
 
         self.program_counter = to - 1
+
+    def int(self):
+        """
+        `INT register`
+
+        Issue the interrupt number stored in the given register.
+
+        This will set the \_n_th bit in the `IS` register to the value in the given
+        register.
+
+        Machine code:
+        ```byte
+        01010010 00000rrr
+        52 0r
+        ```
+        """
+        reg_a = self.next_byte
+        bit = self.registers[reg_a]
+        self.registers[interrupt_status] |= 1 << bit
 
     def jmp(self):
         """
@@ -267,7 +364,7 @@ class CPU:
         ```
         """
         reg_a = self.next_byte
-        to = self.register[reg_a]
+        to = self.registers[reg_a]
         self.program_counter = to - 1
 
     def jeq(self):
@@ -394,7 +491,7 @@ class CPU:
         """
         reg_a = self.next_byte
         value = self.next_byte
-        self.register[reg_a] = value
+        self.registers[reg_a] = value
 
     def ld(self):
         """
@@ -412,9 +509,9 @@ class CPU:
         """
         reg_a = self.next_byte
         reg_b = self.next_byte
-        address = self.register[reg_b]
+        address = self.registers[reg_b]
         value = self.ram[address]
-        self.register[reg_a] = value
+        self.registers[reg_a] = value
 
     def st(self):
         """
@@ -432,8 +529,8 @@ class CPU:
         """
         reg_a = self.next_byte
         reg_b = self.next_byte
-        address = self.register[reg_a]
-        value = self.register[reg_b]
+        address = self.registers[reg_a]
+        value = self.registers[reg_b]
 
         self.ram[address] = value
 
@@ -448,9 +545,9 @@ class CPU:
         def one_reg_operation(alu_operation: Callable):
             def operation():
                 reg_a = self.next_byte
-                a = self.register[reg_a]
+                a = self.registers[reg_a]
 
-                self.register[reg_a] = alu_operation(a)
+                self.registers[reg_a] = alu_operation(a)
 
             return operation
 
@@ -459,10 +556,10 @@ class CPU:
                 reg_a = self.next_byte
                 reg_b = self.next_byte
 
-                a = self.register[reg_a]
-                b = self.register[reg_b]
+                a = self.registers[reg_a]
+                b = self.registers[reg_b]
 
-                self.register[reg_a] = alu_operation(a, b)
+                self.registers[reg_a] = alu_operation(a, b)
 
             return operation
 
@@ -470,8 +567,8 @@ class CPU:
             reg_a = self.next_byte
             reg_b = self.next_byte
 
-            a = self.register[reg_a]
-            b = self.register[reg_b]
+            a = self.registers[reg_a]
+            b = self.registers[reg_b]
 
             self.flags['E'] = int(a == b)
             self.flags['L'] = int(a < b)
