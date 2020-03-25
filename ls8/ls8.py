@@ -7,5 +7,5 @@ from cpu import CPU
 
 cpu = CPU()
 
-cpu.load("./ls8/examples/interrupts.ls8")
+cpu.load(sys.argv[1])
 cpu.run()

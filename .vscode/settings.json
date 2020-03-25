@@ -1,0 +1,6 @@
+{
+    "python.autoComplete.extraPaths": [
+        "./ls8"
+    ],
+    "python.pythonPath": "/Volumes/MacOS-Data/Home/wsedlacek/.local/share/virtualenvs/Lambda-Computer-Architecture-3oATOvDC/bin/python"
+}

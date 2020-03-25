@@ -1,23 +1,20 @@
-"""CPU functionality"""
-
-from typing import Callable
-
+from alu import ALU
 from datetime import datetime, timedelta
-import sys
 
 interrupt_mask = 5
 interrupt_status = 6
 stack_pointer = 7
 stack_start = -13
 
-interupt = list(range(-8, 0))
+interupts = list(range(-8, 0))
 
 
 class CPU:
-    """LS-8 compliant CPU"""
+    """CPU - Central Processing Unit"""
 
     def __init__(self):
         """Construct a new CPU"""
+
         self.used_ram = 0
         self.ram_size = 256
         self.ram = [0] * self.ram_size
@@ -32,6 +29,8 @@ class CPU:
 
         self.flags = {'E': 0, 'L': 0, 'G': 0}
         self.program_counter = -1
+
+        self.alu = ALU(self)
 
         self.operations = {}
         self.operations[0b00010001] = self.ret
@@ -52,30 +51,32 @@ class CPU:
         self.operations[0b10000010] = self.ldi
         self.operations[0b10000011] = self.ld
         self.operations[0b10000100] = self.st
-        self.operations[0b10100000] = self.alu('ADD')
-        self.operations[0b10100001] = self.alu('SUB')
-        self.operations[0b10100010] = self.alu('MUL')
-        self.operations[0b10100011] = self.alu('DIV')
-        self.operations[0b10100100] = self.alu('MOD')
-        self.operations[0b10100101] = self.alu('INC')
-        self.operations[0b10100110] = self.alu('DEC')
-        self.operations[0b10100111] = self.alu('CMP')
-        self.operations[0b10101000] = self.alu('AND')
-        self.operations[0b10101001] = self.alu('NOT')
-        self.operations[0b10101010] = self.alu('OR')
-        self.operations[0b10101011] = self.alu('XOR')
-        self.operations[0b10101100] = self.alu('SHL')
-        self.operations[0b10101101] = self.alu('SHR')
+        self.operations[0b10100000] = self.alu.operations['ADD']
+        self.operations[0b10100001] = self.alu.operations['SUB']
+        self.operations[0b10100010] = self.alu.operations['MUL']
+        self.operations[0b10100011] = self.alu.operations['DIV']
+        self.operations[0b10100100] = self.alu.operations['MOD']
+        self.operations[0b10100101] = self.alu.operations['INC']
+        self.operations[0b10100110] = self.alu.operations['DEC']
+        self.operations[0b10100111] = self.alu.operations['CMP']
+        self.operations[0b10101000] = self.alu.operations['AND']
+        self.operations[0b10101001] = self.alu.operations['NOT']
+        self.operations[0b10101010] = self.alu.operations['OR']
+        self.operations[0b10101011] = self.alu.operations['XOR']
+        self.operations[0b10101100] = self.alu.operations['SHL']
+        self.operations[0b10101101] = self.alu.operations['SHR']
 
     @property
     def next_byte(self):
         """Get the next byte tracked by the pc"""
+
         self.program_counter += 1
         return self.ram[self.program_counter]
 
     @property
     def stack(self):
         """Return an array of the current stack"""
+
         return self.ram[stack_start:self.registers[stack_pointer]:-1]
 
     def load(self, file: str):
@@ -97,6 +98,7 @@ class CPU:
 
     def ram_load(self, value: int):
         """Load a value into the next memory address"""
+
         if self.used_ram < self.ram_size + self.registers[stack_pointer]:
             self.ram[self.used_ram] = value
             self.used_ram += 1
@@ -106,13 +108,15 @@ class CPU:
     def run(self):
         """Run the program currently loaded into RAM"""
 
-        running = True
+        running = 1
         while running:
-            self.interupt()
+            self.process_interupt()
             running = self.execute()
             self.interupt_timer()
 
-    def interupt(self):
+    def process_interupt(self):
+        """Process any interupts if they exist"""
+
         if self.registers[interrupt_status] and not self.interupting:
             masked_interrupts = self.registers[interrupt_mask] & self.registers[interrupt_status]
 
@@ -128,10 +132,12 @@ class CPU:
                     for reg in range(7):
                         self.stack_push(self.registers[reg])
 
-                    self.program_counter = self.ram[interupt[i]] - 1
+                    self.program_counter = self.ram[interupts[i]] - 1
                     break
 
     def execute(self):
+        """Execute the next operation"""
+
         operation = self.next_byte
 
         if operation in self.operations:
@@ -149,8 +155,10 @@ class CPU:
         return 1
 
     def interupt_timer(self):
+        """Trigger a timer interupt if 1 second has passed between the last timer interupt"""
+
         current_time = datetime.now()
-        if current_time - self.last_timer > timedelta(seconds=1) and self.ram[interupt[0]]:
+        if current_time - self.last_timer > timedelta(seconds=1) and self.ram[interupts[0]]:
             self.last_timer = current_time
             self.registers[interrupt_status] = 1
 
@@ -201,6 +209,7 @@ class CPU:
         11
         ```
         """
+
         self.registers[stack_pointer] += 1
         self.program_counter = self.ram[self.registers[stack_pointer]]
 
@@ -223,6 +232,7 @@ class CPU:
         13
         ```
         """
+
         for i in range(6, -1, -1):
             self.registers[i] = self.stack_pop()
 
@@ -246,6 +256,7 @@ class CPU:
         45 0r
         ```
         """
+
         reg_a = self.next_byte
         value = self.registers[reg_a]
         self.stack_push(value)
@@ -265,6 +276,7 @@ class CPU:
         46 0r
         ```
         """
+
         reg_a = self.next_byte
         self.registers[reg_a] = self.stack_pop()
 
@@ -283,6 +295,7 @@ class CPU:
         47 0r
         ```
         """
+
         reg_a = self.next_byte
         value = self.registers[reg_a]
         print(value)
@@ -302,6 +315,7 @@ class CPU:
         48 0r
         ```
         """
+
         reg_a = self.next_byte
         value = self.registers[reg_a]
         print(chr(value), end='')
@@ -322,6 +336,7 @@ class CPU:
         50 0r
         ```
         """
+
         reg_a = self.next_byte
         to = self.registers[reg_a]
 
@@ -345,6 +360,7 @@ class CPU:
         52 0r
         ```
         """
+
         reg_a = self.next_byte
         bit = self.registers[reg_a]
         self.registers[interrupt_status] |= 1 << bit
@@ -363,6 +379,7 @@ class CPU:
         54 0r
         ```
         """
+
         reg_a = self.next_byte
         to = self.registers[reg_a]
         self.program_counter = to - 1
@@ -379,6 +396,7 @@ class CPU:
         55 0r
         ```
         """
+
         if self.flags['E']:
             self.jmp()
         else:
@@ -397,6 +415,7 @@ class CPU:
         56 0r
         ```
         """
+
         if not self.flags['E']:
             self.jmp()
         else:
@@ -416,6 +435,7 @@ class CPU:
         57 0r
         ```
         """
+
         if self.flags['G']:
             self.jmp()
         else:
@@ -435,6 +455,7 @@ class CPU:
         58 0r
         ```
         """
+
         if self.flags['L']:
             self.jmp()
         else:
@@ -453,6 +474,7 @@ class CPU:
         59 0r
         ```
         """
+
         if self.flags['E'] or self.flags['L']:
             self.jmp()
         else:
@@ -489,6 +511,7 @@ class CPU:
         82 0r ii
         ```
         """
+
         reg_a = self.next_byte
         value = self.next_byte
         self.registers[reg_a] = value
@@ -507,6 +530,7 @@ class CPU:
         83 0a 0b
         ```
         """
+
         reg_a = self.next_byte
         reg_b = self.next_byte
         address = self.registers[reg_b]
@@ -527,258 +551,10 @@ class CPU:
         84 0a 0b
         ```
         """
+
         reg_a = self.next_byte
         reg_b = self.next_byte
         address = self.registers[reg_a]
         value = self.registers[reg_b]
 
         self.ram[address] = value
-
-    def alu(self, op_code: str):
-        """
-        ALU - Arithmetic Logic Unit
-
-        Returns a function for the given ALU operation
-        """
-        alu_operations = {}
-
-        def one_reg_operation(alu_operation: Callable):
-            def operation():
-                reg_a = self.next_byte
-                a = self.registers[reg_a]
-
-                self.registers[reg_a] = alu_operation(a)
-
-            return operation
-
-        def two_reg_operation(alu_operation: Callable):
-            def operation():
-                reg_a = self.next_byte
-                reg_b = self.next_byte
-
-                a = self.registers[reg_a]
-                b = self.registers[reg_b]
-
-                self.registers[reg_a] = alu_operation(a, b)
-
-            return operation
-
-        def compare_operation():
-            reg_a = self.next_byte
-            reg_b = self.next_byte
-
-            a = self.registers[reg_a]
-            b = self.registers[reg_b]
-
-            self.flags['E'] = int(a == b)
-            self.flags['L'] = int(a < b)
-            self.flags['G'] = int(a > b)
-
-        """
-        `ADD registerA registerB`
-
-        Add the value in two registers and store the result in registerA.
-
-        Machine code:
-        ```byte
-        10100000 00000aaa 00000bbb
-        A0 0a 0b
-        ```
-        """
-        alu_operations["ADD"] = two_reg_operation(lambda a, b: a + b)
-
-        """
-        `SUB registerA registerB`
-
-        Subtract the value in the second register from the first, storing the
-        result in registerA.
-
-        Machine code:
-        ```byte
-        10100001 00000aaa 00000bbb
-        A1 0a 0b
-        ```
-        """
-        alu_operations["SUB"] = two_reg_operation(lambda a, b: a - b)
-
-        """
-        `MUL registerA registerB`
-
-        Multiply the values in two registers together and store the result in registerA.
-
-        Machine code:
-        ```byte
-        10100010 00000aaa 00000bbb
-        A2 0a 0b
-        ```
-        """
-        alu_operations["MUL"] = two_reg_operation(lambda a, b: a * b)
-
-        """
-        `DIV registerA registerB`
-
-        Divide the value in the first register by the value in the second,
-        storing the result in registerA.
-
-        If the value in the second register is 0, the system should print an
-        error message and halt.
-
-        Machine code:
-        ```byte
-        10100011 00000aaa 00000bbb
-        A3 0a 0b
-        ```
-        """
-        alu_operations["DIV"] = two_reg_operation(lambda a, b: a / b)
-
-        """
-        `MOD registerA registerB`
-
-        Divide the value in the first register by the value in the second,
-        storing the _remainder_ of the result in registerA.
-
-        If the value in the second register is 0, the system should print an
-        error message and halt.
-
-        Machine code:
-        ```byte
-        10100100 00000aaa 00000bbb
-        A4 0a 0b
-        ```
-        """
-        alu_operations["MOD"] = two_reg_operation(lambda a, b: a % b)
-
-        """
-        `INC register`
-
-        Increment (add 1 to) the value in the given register.
-
-        Machine code:
-
-        ```byte
-        01100101 00000rrr
-        65 0r
-        ```
-        """
-        alu_operations["INC"] = one_reg_operation(lambda a: a + 1)
-
-        """
-        `DEC register`
-
-        Decrement (subtract 1 from) the value in the given register.
-
-        Machine code:
-        ```byte
-        01100110 00000rrr
-        66 0r
-        ```
-        """
-        alu_operations["DEC"] = one_reg_operation(lambda a: a - 1)
-
-        """
-        `CMP registerA registerB`
-
-        Compare the values in two registers.
-
-        - If they are equal, set the Equal `E` flag to 1, otherwise set it to 0.
-
-        - If registerA is less than registerB, set the Less-than `L` flag to 1,
-        otherwise set it to 0.
-
-        - If registerA is greater than registerB, set the Greater-than `G` flag
-        to 1, otherwise set it to 0.
-
-        Machine code:
-        ```byte
-        10100111 00000aaa 00000bbb
-        A7 0a 0b
-        ```
-        """
-        alu_operations["CMP"] = compare_operation
-
-        """
-        `AND registerA registerB`
-
-        Bitwise-AND the values in registerA and registerB, then store the result in
-        registerA.
-
-        Machine code:
-        ```byte
-        10101000 00000aaa 00000bbb
-        A8 0a 0b
-        ```
-        """
-        alu_operations["AND"] = two_reg_operation(lambda a, b: a & b)
-
-        """
-        `NOT register`
-
-        Perform a bitwise-NOT on the value in a register, storing the result in the register.
-
-        Machine code:
-
-        ```byte
-        01101001 00000rrr
-        69 0r
-        ```
-        """
-        alu_operations["NOT"] = one_reg_operation(lambda a: ~a)
-
-        """
-        `OR registerA registerB`
-
-        Perform a bitwise-OR between the values in registerA and registerB, storing the
-        result in registerA.
-
-        Machine code:
-
-        ```byte
-        10101010 00000aaa 00000bbb
-        AA 0a 0b
-        ```
-        """
-        alu_operations["OR"] = two_reg_operation(lambda a, b: a | b)
-
-        """
-        `XOR registerA registerB`
-
-        Perform a bitwise-XOR between the values in registerA and registerB, storing the
-        result in registerA.
-
-        Machine code:
-
-        ```byte
-        10101011 00000aaa 00000bbb
-        AB 0a 0b
-        ```
-        """
-        alu_operations["XOR"] = two_reg_operation(lambda a, b: a ^ b)
-
-        """
-        Shift the value in registerA left by the number of bits specified in registerB,
-        filling the low bits with 0.
-
-        Machine Code:
-        ```byte
-        10101100 00000aaa 00000bbb
-        AC 0a 0b
-        ```
-        """
-        alu_operations["SHL"] = two_reg_operation(lambda a, b: a << b)
-
-        """
-        Shift the value in registerA right by the number of bits specified in registerB,
-        filling the high bits with 0.
-
-        Machine Code:
-        ```byte
-        10101101 00000aaa 00000bbb
-        AD 0a 0b
-        ```
-        """
-        alu_operations["SHR"] = two_reg_operation(lambda a, b: a >> b)
-
-        if op_code not in alu_operations:
-            raise Exception("Unsupported ALU operation")
-
-        return alu_operations[op_code]
