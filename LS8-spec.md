@@ -364,6 +364,8 @@ Machine code:
 If `greater-than` flag or `equal` flag is set (true), jump to the address stored
 in the given register.
 
+Machine code:
+
 ```byte
 01011010 00000rrr
 5A 0r
@@ -389,6 +391,8 @@ Machine code:
 
 If `less-than` flag or `equal` flag is set (true), jump to the address stored in the given
 register.
+
+Machine code:
 
 ```byte
 01011001 00000rrr

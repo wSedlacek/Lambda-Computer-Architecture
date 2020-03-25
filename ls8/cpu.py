@@ -14,7 +14,11 @@ class CPU:
         self.ram = [0] * self.ram_size
         self.reg = [-1] * 8
         self.pc = -1
-        self.flags = {}
+        self.flags = {
+            'E': 0,
+            'L': 0,
+            'G': 0,
+        }
 
         self.stack_start = -13
         self.stack_end = -13
@@ -27,6 +31,12 @@ class CPU:
         self.operations[0b01001000] = self.pra
         self.operations[0b01010000] = self.call
         self.operations[0b01010100] = self.jmp
+        self.operations[0b01010101] = self.jeq
+        self.operations[0b01010110] = self.jne
+        self.operations[0b01010111] = self.jgt
+        self.operations[0b01011000] = self.jlt
+        self.operations[0b01011001] = self.jle
+        self.operations[0b01011010] = self.jge
         self.operations[0b10000010] = self.ldi
         self.operations[0b10000011] = self.ld
         self.operations[0b10000100] = self.st
@@ -212,7 +222,7 @@ class CPU:
         """
         reg_a = self.next_byte
         value = self.reg[reg_a]
-        print(chr(value))
+        print(chr(value), end='')
 
     def call(self):
         """
@@ -255,6 +265,116 @@ class CPU:
         reg_a = self.next_byte
         to = self.reg[reg_a]
         self.pc = to - 1
+
+    def jeq(self):
+        """
+        `JEQ register`
+
+        If `equal` flag is set (true), jump to the address stored in the given register.
+
+        Machine code:
+        ```byte
+        01010101 00000rrr
+        55 0r
+        ```
+        """
+        if self.flags['E']:
+            self.jmp()
+        else:
+            self.next_byte
+
+    def jne(self):
+        """
+        `JNE register`
+
+        If `E` flag is clear (false, 0), jump to the address stored in the given
+        register.
+
+        Machine code:
+        ```byte
+        01010110 00000rrr
+        56 0r
+        ```
+        """
+        if not self.flags['E']:
+            self.jmp()
+        else:
+            self.next_byte
+
+    def jgt(self):
+        """
+        `JGT register`
+
+        If `greater-than` flag is set (true), jump to the address stored in the given
+        register.
+
+        Machine code:
+
+        ```byte
+        01010111 00000rrr
+        57 0r
+        ```
+        """
+        if self.flags['G']:
+            self.jmp()
+        else:
+            self.next_byte
+
+    def jlt(self):
+        """
+        `JLT register`
+
+        If `less-than` flag is set (true), jump to the address stored in the given
+        register.
+
+        Machine code:
+
+        ```byte
+        01011000 00000rrr
+        58 0r
+        ```
+        """
+        if self.flags['L']:
+            self.jmp()
+        else:
+            self.next_byte
+
+    def jle(self):
+        """
+        `JLE register`
+
+        If `less-than` flag or `equal` flag is set (true), jump to the address stored in the given
+        register.
+
+        Machine code:
+        ```byte
+        01011001 00000rrr
+        59 0r
+        ```
+        """
+        if self.flags['E'] or self.flags['L']:
+            self.jmp()
+        else:
+            self.next_byte
+
+    def jge(self):
+        """
+        `JGE register`
+
+        If `greater-than` flag or `equal` flag is set (true), jump to the address stored
+        in the given register.
+
+        Machine code:
+
+        ```byte
+        01011010 00000rrr
+        5A 0r
+        ```
+        """
+        if self.flags['E'] or self.flags['G']:
+            self.jmp()
+        else:
+            self.next_byte
 
     def ldi(self):
         """
