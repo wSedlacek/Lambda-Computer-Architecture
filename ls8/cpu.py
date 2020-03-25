@@ -119,13 +119,6 @@ class CPU:
             self.interupt_timer()
             self.keyboard_poll()
 
-    def keyboard_poll(self):
-        """Check for keyboard inputs and if any exist send an interupt"""
-
-        if select([stdin], [], [], 0) == ([stdin], [], []):
-            self.ram[last_key] = ord(stdin.read(1))
-            self.registers[interrupt_status] |= 1 << 1
-
     def process_interupt(self):
         """Process any interupts if they exist"""
 
@@ -164,6 +157,13 @@ class CPU:
         if current_time - self.last_timer > timedelta(seconds=1) and self.ram[interupts[0]]:
             self.last_timer = current_time
             self.registers[interrupt_status] |= 1 << 0
+
+    def keyboard_poll(self):
+        """Check for keyboard inputs and if any exist send an interupt"""
+
+        if select([stdin], [], [], 0) == ([stdin], [], []):
+            self.ram[last_key] = ord(stdin.read(1))
+            self.registers[interrupt_status] |= 1 << 1
 
     def trace(self):
         """
