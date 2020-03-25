@@ -12,16 +12,14 @@ class CPU:
         self.used_ram = 0
         self.ram_size = 2048
         self.ram = [0] * self.ram_size
-        self.reg = [-1] * 8
-        self.pc = -1
-        self.flags = {
-            'E': 0,
-            'L': 0,
-            'G': 0,
-        }
 
-        self.stack_start = -13
-        self.stack_end = -13
+        self.register = [-1] * 5
+        self.interupt_mask = 0
+        self.interupt_status = 0
+        self.stack_pointer = -13
+
+        self.flags = {'E': 0, 'L': 0, 'G': 0}
+        self.program_counter = -1
 
         self.operations = {}
         self.operations[0b00010001] = self.ret
@@ -58,13 +56,13 @@ class CPU:
     @property
     def next_byte(self):
         """Get the next byte tracked by the pc"""
-        self.pc += 1
-        return self.ram[self.pc]
+        self.program_counter += 1
+        return self.ram[self.program_counter]
 
     @property
     def stack(self):
         """Return an array of the current stack"""
-        return self.ram[self.stack_start:self.stack_end:-1]
+        return self.ram[-13:self.stack_pointer:-1]
 
     def load(self, file: str):
         """Load a program into RAM"""
@@ -85,7 +83,7 @@ class CPU:
 
     def ram_load(self, value: int):
         """Load a value into the next memory address"""
-        if self.used_ram < self.ram_size + self.stack_end:
+        if self.used_ram < self.ram_size + self.stack_pointer:
             self.ram[self.used_ram] = value
             self.used_ram += 1
         else:
@@ -116,13 +114,13 @@ class CPU:
         """
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
-            self.pc,
+            self.program_counter,
             self.next_byte,
             self.next_byte,
             self.next_byte
         ), end='')
 
-        for reg in self.reg:
+        for reg in self.register:
             print(" %02X" % reg, end='')
 
         print()
@@ -142,8 +140,8 @@ class CPU:
         11
         ```
         """
-        self.stack_end += 1
-        self.pc = self.ram[self.stack_end]
+        self.stack_pointer += 1
+        self.program_counter = self.ram[self.stack_pointer]
 
     def push(self):
         """
@@ -161,10 +159,13 @@ class CPU:
         45 0r
         ```
         """
-        reg_a = self.next_byte
-        value = self.reg[reg_a]
-        self.ram[self.stack_end] = value
-        self.stack_end -= 1
+        if self.ram_size < self.used_ram - self.stack_pointer:
+            reg_a = self.next_byte
+            value = self.register[reg_a]
+            self.ram[self.stack_pointer] = value
+            self.stack_pointer -= 1
+        else:
+            raise Exception("Stack Overflow")
 
     def pop(self):
         """
@@ -181,10 +182,13 @@ class CPU:
         46 0r
         ```
         """
-        self.stack_end += 1
-        value = self.ram[self.stack_end]
-        reg_a = self.next_byte
-        self.reg[reg_a] = value
+        if self.stack_pointer < -13:
+            self.stack_pointer += 1
+            value = self.ram[self.stack_pointer]
+            reg_a = self.next_byte
+            self.register[reg_a] = value
+        else:
+            raise Exception("Stack Underflow")
 
     def prn(self):
         """
@@ -202,7 +206,7 @@ class CPU:
         ```
         """
         reg_a = self.next_byte
-        value = self.reg[reg_a]
+        value = self.register[reg_a]
         print(value)
 
     def pra(self):
@@ -221,7 +225,7 @@ class CPU:
         ```
         """
         reg_a = self.next_byte
-        value = self.reg[reg_a]
+        value = self.register[reg_a]
         print(chr(value), end='')
 
     def call(self):
@@ -241,12 +245,12 @@ class CPU:
         ```
         """
         reg_a = self.next_byte
-        to = self.reg[reg_a]
+        to = self.register[reg_a]
 
-        self.ram[self.stack_end] = self.pc
-        self.stack_end -= 1
+        self.ram[self.stack_pointer] = self.program_counter
+        self.stack_pointer -= 1
 
-        self.pc = to - 1
+        self.program_counter = to - 1
 
     def jmp(self):
         """
@@ -263,8 +267,8 @@ class CPU:
         ```
         """
         reg_a = self.next_byte
-        to = self.reg[reg_a]
-        self.pc = to - 1
+        to = self.register[reg_a]
+        self.program_counter = to - 1
 
     def jeq(self):
         """
@@ -390,7 +394,7 @@ class CPU:
         """
         reg_a = self.next_byte
         value = self.next_byte
-        self.reg[reg_a] = value
+        self.register[reg_a] = value
 
     def ld(self):
         """
@@ -408,9 +412,9 @@ class CPU:
         """
         reg_a = self.next_byte
         reg_b = self.next_byte
-        address = self.reg[reg_b]
+        address = self.register[reg_b]
         value = self.ram[address]
-        self.reg[reg_a] = value
+        self.register[reg_a] = value
 
     def st(self):
         """
@@ -428,8 +432,8 @@ class CPU:
         """
         reg_a = self.next_byte
         reg_b = self.next_byte
-        address = self.reg[reg_a]
-        value = self.reg[reg_b]
+        address = self.register[reg_a]
+        value = self.register[reg_b]
 
         self.ram[address] = value
 
@@ -444,9 +448,9 @@ class CPU:
         def one_reg_operation(alu_operation: Callable):
             def operation():
                 reg_a = self.next_byte
-                a = self.reg[reg_a]
+                a = self.register[reg_a]
 
-                self.reg[reg_a] = alu_operation(a)
+                self.register[reg_a] = alu_operation(a)
 
             return operation
 
@@ -455,10 +459,10 @@ class CPU:
                 reg_a = self.next_byte
                 reg_b = self.next_byte
 
-                a = self.reg[reg_a]
-                b = self.reg[reg_b]
+                a = self.register[reg_a]
+                b = self.register[reg_b]
 
-                self.reg[reg_a] = alu_operation(a, b)
+                self.register[reg_a] = alu_operation(a, b)
 
             return operation
 
@@ -466,8 +470,8 @@ class CPU:
             reg_a = self.next_byte
             reg_b = self.next_byte
 
-            a = self.reg[reg_a]
-            b = self.reg[reg_b]
+            a = self.register[reg_a]
+            b = self.register[reg_b]
 
             self.flags['E'] = int(a == b)
             self.flags['L'] = int(a < b)
