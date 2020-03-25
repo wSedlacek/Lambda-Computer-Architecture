@@ -499,6 +499,7 @@ class CPU:
         5A 0r
         ```
         """
+        
         if self.flags['E'] or self.flags['G']:
             self.JMP()
         else:
