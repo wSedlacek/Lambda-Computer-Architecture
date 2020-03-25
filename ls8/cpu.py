@@ -120,6 +120,8 @@ class CPU:
             self.keyboard_poll()
 
     def keyboard_poll(self):
+        """Check for keyboard inputs and if any exist send an interupt"""
+
         if select([stdin], [], [], 0) == ([stdin], [], []):
             self.ram[last_key] = ord(stdin.read(1))
             self.registers[interrupt_status] |= 1 << 1
@@ -182,6 +184,8 @@ class CPU:
         print()
 
     def stack_push(self, value):
+        """Push a item onto the stack"""
+
         if (self.used_ram - self.registers[stack_pointer]) - self.ram_size < 0:
             self.ram[self.registers[stack_pointer]] = value
             self.registers[stack_pointer] -= 1
@@ -189,6 +193,8 @@ class CPU:
             raise Exception("Stack Overflow")
 
     def stack_pop(self):
+        """Pop an item off the stack"""
+
         if self.registers[stack_pointer] < stack_start:
             self.registers[stack_pointer] += 1
             return self.ram[self.registers[stack_pointer]]
