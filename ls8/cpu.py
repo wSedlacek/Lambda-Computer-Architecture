@@ -209,7 +209,6 @@ class CPU:
         No operation. Do nothing for this instruction.
 
         Machine code:
-
         ```byte
         00000000
         00
