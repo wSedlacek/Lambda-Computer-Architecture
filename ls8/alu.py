@@ -6,14 +6,17 @@ if TYPE_CHECKING:
 
 
 class ALU:
-    """
-    ALU - Arithmetic Logic Unit
-    """
+    """ALU - Arithmetic Logic Unit"""
 
     def __init__(self, cpu: "CPU"):
         self.cpu = cpu
 
     def one_reg_operation(self, alu_operation: Callable):
+        """
+        Build an ALU operation that takes only one register
+        and sets the result to that same register
+        """
+
         def operation():
             reg_a = self.cpu.next_byte
             a = self.cpu.registers[reg_a]
@@ -23,6 +26,10 @@ class ALU:
         return operation
 
     def two_reg_operation(self, alu_operation: Callable):
+        """
+        Build an ALU operation that uses two registers and
+        sets the result to the first register
+        """
         def operation():
             reg_a = self.cpu.next_byte
             reg_b = self.cpu.next_byte
@@ -35,6 +42,10 @@ class ALU:
         return operation
 
     def compare_operation(self):
+        """
+        Compare the two registers and set CPU flags based on
+        the results
+        """
         reg_a = self.cpu.next_byte
         reg_b = self.cpu.next_byte
 
@@ -289,4 +300,5 @@ class ALU:
         AD 0a 0b
         ```
         """
+
         return self.two_reg_operation(lambda a, b: a >> b)
