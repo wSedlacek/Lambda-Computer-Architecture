@@ -257,7 +257,7 @@ Decrement (subtract 1 from) the value in the given register.
 Machine code:
 
 ```byte
-01100110 00000rrr
+10100110 00000rrr
 66 0r
 ```
 
@@ -304,7 +304,7 @@ Increment (add 1 to) the value in the given register.
 Machine code:
 
 ```byte
-01100101 00000rrr
+10100101 00000rrr
 65 0r
 ```
 
