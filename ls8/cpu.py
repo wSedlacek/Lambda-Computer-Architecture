@@ -30,41 +30,41 @@ class CPU:
         self.flags = {'E': 0, 'L': 0, 'G': 0}
         self.program_counter = -1
 
-        self.alu = ALU(self)
+        alu = ALU(self)
 
         self.operations = {}
-        self.operations[0b00010001] = self.ret
-        self.operations[0b00010011] = self.iret
-        self.operations[0b01000101] = self.push
-        self.operations[0b01000110] = self.pop
-        self.operations[0b01000111] = self.prn
-        self.operations[0b01001000] = self.pra
-        self.operations[0b01010000] = self.call
-        self.operations[0b01010010] = self.int
-        self.operations[0b01010100] = self.jmp
-        self.operations[0b01010101] = self.jeq
-        self.operations[0b01010110] = self.jne
-        self.operations[0b01010111] = self.jgt
-        self.operations[0b01011000] = self.jlt
-        self.operations[0b01011001] = self.jle
-        self.operations[0b01011010] = self.jge
-        self.operations[0b10000010] = self.ldi
-        self.operations[0b10000011] = self.ld
-        self.operations[0b10000100] = self.st
-        self.operations[0b10100000] = self.alu.operations['ADD']
-        self.operations[0b10100001] = self.alu.operations['SUB']
-        self.operations[0b10100010] = self.alu.operations['MUL']
-        self.operations[0b10100011] = self.alu.operations['DIV']
-        self.operations[0b10100100] = self.alu.operations['MOD']
-        self.operations[0b10100101] = self.alu.operations['INC']
-        self.operations[0b10100110] = self.alu.operations['DEC']
-        self.operations[0b10100111] = self.alu.operations['CMP']
-        self.operations[0b10101000] = self.alu.operations['AND']
-        self.operations[0b10101001] = self.alu.operations['NOT']
-        self.operations[0b10101010] = self.alu.operations['OR']
-        self.operations[0b10101011] = self.alu.operations['XOR']
-        self.operations[0b10101100] = self.alu.operations['SHL']
-        self.operations[0b10101101] = self.alu.operations['SHR']
+        self.operations[0b00010001] = self.RET
+        self.operations[0b00010011] = self.IRET
+        self.operations[0b01000101] = self.PUSH
+        self.operations[0b01000110] = self.POP
+        self.operations[0b01000111] = self.PRN
+        self.operations[0b01001000] = self.PRA
+        self.operations[0b01010000] = self.CALL
+        self.operations[0b01010010] = self.INT
+        self.operations[0b01010100] = self.JMP
+        self.operations[0b01010101] = self.JEQ
+        self.operations[0b01010110] = self.JNE
+        self.operations[0b01010111] = self.JGT
+        self.operations[0b01011000] = self.JLT
+        self.operations[0b01011001] = self.JLE
+        self.operations[0b01011010] = self.JGE
+        self.operations[0b10000010] = self.LDI
+        self.operations[0b10000011] = self.LD
+        self.operations[0b10000100] = self.ST
+        self.operations[0b10100000] = alu.ADD
+        self.operations[0b10100001] = alu.SUB
+        self.operations[0b10100010] = alu.MUL
+        self.operations[0b10100011] = alu.DIV
+        self.operations[0b10100100] = alu.MOD
+        self.operations[0b10100101] = alu.INC
+        self.operations[0b10100110] = alu.DEC
+        self.operations[0b10100111] = alu.CMP
+        self.operations[0b10101000] = alu.AND
+        self.operations[0b10101001] = alu.NOT
+        self.operations[0b10101010] = alu.OR
+        self.operations[0b10101011] = alu.XOR
+        self.operations[0b10101100] = alu.SHL
+        self.operations[0b10101101] = alu.SHR
 
     @property
     def next_byte(self):
@@ -195,7 +195,7 @@ class CPU:
             raise Exception("Stack Underflow")
 
     ##### OPERATIONS ####
-    def ret(self):
+    def RET(self):
         """
         `RET`
 
@@ -213,7 +213,7 @@ class CPU:
         self.registers[stack_pointer] += 1
         self.program_counter = self.ram[self.registers[stack_pointer]]
 
-    def iret(self):
+    def IRET(self):
         """
         `IRET`
 
@@ -240,7 +240,7 @@ class CPU:
         self.program_counter = self.stack_pop()
         self.interupting = False
 
-    def push(self):
+    def PUSH(self):
         """
         `PUSH register`
 
@@ -261,7 +261,7 @@ class CPU:
         value = self.registers[reg_a]
         self.stack_push(value)
 
-    def pop(self):
+    def POP(self):
         """
         `POP register`
 
@@ -280,7 +280,7 @@ class CPU:
         reg_a = self.next_byte
         self.registers[reg_a] = self.stack_pop()
 
-    def prn(self):
+    def PRN(self):
         """
         `PRN register` pseudo-instruction
 
@@ -300,7 +300,7 @@ class CPU:
         value = self.registers[reg_a]
         print(value)
 
-    def pra(self):
+    def PRA(self):
         """
         `PRA register` pseudo-instruction
 
@@ -320,7 +320,7 @@ class CPU:
         value = self.registers[reg_a]
         print(chr(value), end='')
 
-    def call(self):
+    def CALL(self):
         """
         `CALL register`
 
@@ -345,7 +345,7 @@ class CPU:
 
         self.program_counter = to - 1
 
-    def int(self):
+    def INT(self):
         """
         `INT register`
 
@@ -365,7 +365,7 @@ class CPU:
         bit = self.registers[reg_a]
         self.registers[interrupt_status] |= 1 << bit
 
-    def jmp(self):
+    def JMP(self):
         """
         `JMP register`
 
@@ -384,7 +384,7 @@ class CPU:
         to = self.registers[reg_a]
         self.program_counter = to - 1
 
-    def jeq(self):
+    def JEQ(self):
         """
         `JEQ register`
 
@@ -398,11 +398,11 @@ class CPU:
         """
 
         if self.flags['E']:
-            self.jmp()
+            self.JMP()
         else:
             self.next_byte
 
-    def jne(self):
+    def JNE(self):
         """
         `JNE register`
 
@@ -417,11 +417,11 @@ class CPU:
         """
 
         if not self.flags['E']:
-            self.jmp()
+            self.JMP()
         else:
             self.next_byte
 
-    def jgt(self):
+    def JGT(self):
         """
         `JGT register`
 
@@ -437,11 +437,11 @@ class CPU:
         """
 
         if self.flags['G']:
-            self.jmp()
+            self.JMP()
         else:
             self.next_byte
 
-    def jlt(self):
+    def JLT(self):
         """
         `JLT register`
 
@@ -457,11 +457,11 @@ class CPU:
         """
 
         if self.flags['L']:
-            self.jmp()
+            self.JMP()
         else:
             self.next_byte
 
-    def jle(self):
+    def JLE(self):
         """
         `JLE register`
 
@@ -476,11 +476,11 @@ class CPU:
         """
 
         if self.flags['E'] or self.flags['L']:
-            self.jmp()
+            self.JMP()
         else:
             self.next_byte
 
-    def jge(self):
+    def JGE(self):
         """
         `JGE register`
 
@@ -495,11 +495,11 @@ class CPU:
         ```
         """
         if self.flags['E'] or self.flags['G']:
-            self.jmp()
+            self.JMP()
         else:
             self.next_byte
 
-    def ldi(self):
+    def LDI(self):
         """
         `LDI register immediate`
 
@@ -516,7 +516,7 @@ class CPU:
         value = self.next_byte
         self.registers[reg_a] = value
 
-    def ld(self):
+    def LD(self):
         """
         `LD registerA registerB`
 
@@ -537,7 +537,7 @@ class CPU:
         value = self.ram[address]
         self.registers[reg_a] = value
 
-    def st(self):
+    def ST(self):
         """
         `ST registerA registerB`
 
